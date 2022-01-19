@@ -314,6 +314,18 @@ class Parser {
         return response;
     }
 
+    public async *loadReplacements(
+        minimalDate: Date,
+        maximumDate = new Date()
+    ): AsyncGenerator<MPT.Replacements.IGroup[], void, unknown> {
+        const selectedDate = moment(minimalDate);
+        selectedDate.isBefore(maximumDate);
+
+        while (selectedDate.isBefore(maximumDate)) {
+            yield await this.getReplacementsOnDay(selectedDate);
+        }
+    }
+
     private _parseLesson(lessonString: string): MPT.Replacements.ILesson {
         lessonString = lessonString.trim();
         const teachers = lessonString.match(/((?:[А-Я].){2} [А-Яа-я]*)/g);
