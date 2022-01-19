@@ -14,15 +14,6 @@ const pages = {
 
 class Parser {
     private _host: string;
-    private _days = [
-        "Воскресенье",
-        "Понедельник",
-        "Вторник",
-        "Среда",
-        "Четверг",
-        "Пятница",
-        "Суббота",
-    ] as const;
 
     constructor({ host = "https://mpt.ru" }: Partial<IParserOptions> = {}) {
         this._host = host;
