@@ -48,4 +48,37 @@ declare namespace MPT {
             groups: IGroup[];
         }
     }
+
+    namespace Specialties {
+        interface ISpecialty {
+            name: string;
+            code: string;
+            url: string;
+        }
+
+        interface ISiteGroupLeaders {
+            name: string;
+            roles: {
+                photo: string;
+                role: string;
+                name: string;
+            }[];
+        }
+
+        interface ISiteItem {
+            name: string;
+            url: string;
+            date: Date;
+        }
+
+        interface ISite {
+            name: string;
+            code: string;
+            url: string;
+            importantInformation: SiteItem[];
+            news: SiteItem[];
+            examQuestions: SiteItem[];
+            groupsLeaders: ISpecialtySiteGroupLeaders[];
+        }
+    }
 }

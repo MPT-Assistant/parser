@@ -10,6 +10,7 @@ const pages = {
     schedule: "/studentu/raspisanie-zanyatiy/",
     replacements: "/studentu/izmeneniya-v-raspisanii/",
     replacementsOnDay: "/rasp-management/print-replaces.php?date=",
+    specialtiesSites: "/sites-otdels/",
 } as const;
 
 class Parser {
@@ -315,6 +316,26 @@ class Parser {
         while (selectedDate.isBefore(maximumDate)) {
             yield await this.getReplacementsOnDay(selectedDate);
         }
+    }
+
+    public async getSpecialtiesList(): Promise<MPT.Specialties.ISpecialty[]> {
+        const $ = await this._loadPage(pages.specialtiesSites);
+        const list = $(
+            ".container-fluid > div:nth-child(1) > div:nth-child(3)"
+        );
+        const response: MPT.Specialties.ISpecialty[] = [];
+        list.children().map((index, element) => {
+            const elem = $(element).find("a");
+            const name = elem.text().trim();
+            response.push({
+                name,
+                code: name.match(
+                    /(\d\d\.\d\d\.\d\d(?:(?:\([А-Я]+\))?)|Отделение первого курса)/g
+                )?.[0] as string,
+                url: (elem.attr("href") as string).trim(),
+            });
+        });
+        return response;
     }
 
     private _parseLesson(lessonString: string): MPT.Replacements.ILesson {
