@@ -1,0 +1,18 @@
+{
+    "name": "node-typescript-template",
+    "license": "MIT",
+    "scripts": {
+        "build": "tsc --project ./tsconfig.json",
+        "lint": "eslint -c ./.eslintrc.json ./src"
+    },
+    "devDependencies": {
+        "@typescript-eslint/eslint-plugin": "^5.9.0",
+        "@typescript-eslint/parser": "^5.9.0",
+        "eslint": "^8.6.0",
+        "typescript": "^4.5.4"
+    },
+    "dependencies": {
+        "axios": "^0.24.0",
+        "cheerio": "^1.0.0-rc.10"
+    }
+}
