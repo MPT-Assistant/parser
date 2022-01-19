@@ -338,6 +338,115 @@ class Parser {
         return response;
     }
 
+    public async getSpecialtySite(
+        specialty: string,
+        specialtiesList?: MPT.Specialties.ISpecialty[]
+    ): Promise<MPT.Specialties.ISite> {
+        if (!specialtiesList) {
+            specialtiesList = await this.getSpecialtiesList();
+        }
+
+        const regexp = new RegExp(
+            specialty.replace(/[-\\/\\^$*+?.()|[\]{}]/g, "\\$&"),
+            "ig"
+        );
+
+        const specialtyInfo = specialtiesList.find((x) => regexp.test(x.name));
+
+        if (!specialtyInfo) {
+            throw new Error("Specialty not found");
+        }
+
+        const response: MPT.Specialties.ISite = {
+            ...specialtyInfo,
+            importantInformation: [],
+            news: [],
+            examQuestions: [],
+            groupsLeaders: [],
+        };
+
+        const specialtySite = (await axios.get(specialtyInfo.url))
+            .data as string;
+        const $ = cheerio.load(specialtySite);
+
+        const importantInformation = $(
+            ".col-sm-8 > div:contains(Важная информация!) > ul"
+        );
+        importantInformation.children().map((index, element) => {
+            const elem = $(element);
+            const news = elem.find("a");
+            const date = elem.find("div").text().trim();
+            const name = news.text().trim();
+            const link = (news.attr("href") as string).trim();
+            const url = link ? `https://mpt.ru/${link}` : "";
+            response.importantInformation.push({
+                name,
+                url,
+                date: moment(date, "DD.MM.YYYY").toDate(),
+            });
+        });
+
+        const groupsLeadersList = $(
+            "div.block_no-margin:contains(Активы групп)"
+        ).find(".tab-content");
+        groupsLeadersList.children().map((index, element) => {
+            const elem = $(element);
+            const name = elem.find("h3").text().trim();
+
+            const groupInfo: MPT.Specialties.ISiteGroupLeaders = {
+                name,
+                roles: [],
+            };
+
+            elem.find("table").map((index, element) => {
+                const elem = $(element);
+                const [photo, role, name] = elem.find("tr").children();
+                const photoSrc = $(photo).find("img").attr("src") as string;
+                groupInfo.roles.push({
+                    photo: photoSrc ? `https://mpt.ru/${photoSrc}` : "",
+                    role: $(role).text().trim(),
+                    name: $(name).text().trim(),
+                });
+            });
+
+            if (groupInfo.roles.length > 0) {
+                response.groupsLeaders.push(groupInfo);
+            }
+        });
+
+        const news = $(".col-sm-8 > div:contains(Новости) > ul");
+        news.children().map((index, element) => {
+            const elem = $(element);
+            const news = elem.find("a");
+            const date = elem.find("div").text().trim();
+            const name = news.text().trim();
+            const link = (news.attr("href") as string).trim();
+            const url = link ? `https://mpt.ru/${link}` : "";
+            response.news.push({
+                name,
+                url,
+                date: moment(date, "DD.MM.YYYY").toDate(),
+            });
+        });
+
+        const examQuestions = $(".table-hover > tbody:nth-child(2)");
+        examQuestions.children().map((index, element) => {
+            const elem = $(element);
+            const document = elem.find("a");
+            const name = document.text().trim();
+            const link = (document.attr("href") as string).trim();
+            const url = link ? `https://mpt.ru/${link}` : "";
+            const date = elem.find("td:nth-child(2)").text().trim();
+            response.examQuestions.push({
+                name,
+                url,
+                date: moment(date, "DD.MM.YYYY HH:mm:ss").toDate(),
+            });
+        });
+
+        return response;
+    }
+
     private _parseLesson(lessonString: string): MPT.Replacements.ILesson {
         lessonString = lessonString.trim();
         const teachers = lessonString.match(/((?:[А-Я].){2} [А-Яа-я]*)/g);
