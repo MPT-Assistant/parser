@@ -1,62 +1,62 @@
 declare namespace MPT {
-    type TWeek = "Знаменатель" | "Числитель";
+    export type TWeek = "Знаменатель" | "Числитель";
 
     namespace Schedule {
-        interface ILesson {
+        export interface ILesson {
             num: number;
             name: [string, string?];
             teacher: [string, string?];
         }
 
-        interface IDay {
+        export interface IDay {
             num: number;
             place: string;
             lessons: ILesson[];
         }
 
-        interface IGroup {
+        export interface IGroup {
             name: string;
             days: Day[];
         }
 
-        interface ISpecialty {
+        export interface ISpecialty {
             name: string;
             groups: Group[];
         }
     }
 
     namespace Replacements {
-        interface ILesson {
+        export interface ILesson {
             name: string;
             teacher: string;
         }
 
-        interface IReplacement {
+        export interface IReplacement {
             num: number;
             old: ILesson;
             new: ILesson;
             created: Date;
         }
 
-        interface IGroup {
+        export interface IGroup {
             group: string;
             replacements: IReplacement[];
         }
 
-        interface IDay {
+        export interface IDay {
             date: Date;
             groups: IGroup[];
         }
     }
 
     namespace Specialties {
-        interface ISpecialty {
+        export interface ISpecialty {
             name: string;
             code: string;
             url: string;
         }
 
-        interface ISiteGroupLeaders {
+        export interface ISiteGroupLeaders {
             name: string;
             roles: {
                 photo: string;
@@ -65,13 +65,13 @@ declare namespace MPT {
             }[];
         }
 
-        interface ISiteItem {
+        export interface ISiteItem {
             name: string;
             url: string;
             date: Date;
         }
 
-        interface ISite {
+        export interface ISite {
             name: string;
             code: string;
             url: string;
