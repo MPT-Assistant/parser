@@ -31,12 +31,21 @@ declare namespace MPT {
             teacher: string;
         }
 
-        interface IRawReplacement {
-            date: Date;
+        interface IReplacement {
             num: number;
             old: ILesson;
             new: ILesson;
-            created?: Date;
+            created: Date;
+        }
+
+        interface IGroup {
+            group: string;
+            replacements: IReplacement[];
+        }
+
+        interface IDay {
+            date: Date;
+            groups: IGroup[];
         }
     }
 }

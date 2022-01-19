@@ -1,5 +1,6 @@
 import axios from "axios";
 import cheerio, { CheerioAPI } from "cheerio";
+import moment from "moment";
 
 interface IParserOptions {
     host: string;
@@ -7,6 +8,7 @@ interface IParserOptions {
 
 const pages = {
     schedule: "/studentu/raspisanie-zanyatiy/",
+    replacements: "/studentu/izmeneniya-v-raspisanii/",
 } as const;
 
 class Parser {
@@ -158,6 +160,112 @@ class Parser {
         return specialtyList;
     }
 
+    public async getReplacements(): Promise<MPT.Replacements.IDay[]> {
+        const $ = await this._loadPage(pages.replacements);
+
+        const list = $(
+            ".container-fluid > div:nth-child(1) > div:nth-child(3)"
+        );
+        const response: MPT.Replacements.IDay[] = [];
+
+        list.children().map((index, element) => {
+            if (index === 0) {
+                return;
+            }
+
+            const elem = $(element);
+
+            if (elem[0].name === "h4") {
+                const sourceDate = elem.text();
+                const parsedDate = sourceDate.match(
+                    /((?:\d{2}).(?:\d{2}).(?:\d{4}))/g
+                );
+                if (parsedDate === null) {
+                    throw new Error("Date not found");
+                }
+                const date = moment(parsedDate[0], "DD.MM.YYYY").toDate();
+                response.push({
+                    date,
+                    groups: [],
+                });
+                return;
+            }
+
+            if (elem[0].name !== "div") {
+                return;
+            }
+
+            const sourceGroupNames = elem.find(
+                "table:nth-child(1) > caption:nth-child(1) > b:nth-child(1)"
+            );
+            const groupNames = sourceGroupNames.text().split(", ");
+
+            const replacements: MPT.Replacements.IReplacement[] = [];
+
+            const replacementsList = elem.find(
+                "table:nth-child(1) > tbody:nth-child(2) > tr:not(:first-child)"
+            );
+
+            for (const element of replacementsList) {
+                const elem = $(element);
+
+                const sourceLessonNum = elem.find("td:nth-child(1)").text();
+                const sourceOldLesson = elem.find("td:nth-child(2)").text();
+                const sourceNewLesson = elem.find("td:nth-child(3)").text();
+                const sourceAddToSite = elem.find("td:nth-child(4)").text();
+
+                if (sourceOldLesson.includes("ПРАКТИКА")) {
+                    console.log(`"${sourceOldLesson}"`);
+                    console.log(this._parseLesson(sourceOldLesson));
+                }
+
+                const [lessonNum, newLesson, oldLesson, addToSite]: [
+                    number,
+                    MPT.Replacements.ILesson,
+                    MPT.Replacements.ILesson,
+                    Date
+                ] = [
+                    parseInt(sourceLessonNum),
+                    this._parseLesson(sourceNewLesson),
+                    this._parseLesson(sourceOldLesson),
+                    moment(sourceAddToSite, "DD.MM.YYYY HH:mm:ss").toDate(),
+                ];
+
+                replacements.push({
+                    num: lessonNum,
+                    new: newLesson,
+                    old: oldLesson,
+                    created: addToSite,
+                });
+            }
+
+            groupNames.map((group) => {
+                response[response.length - 1].groups.push({
+                    group,
+                    replacements,
+                });
+            });
+        });
+
+        return response;
+    }
+
+    private _parseLesson(lessonString: string): MPT.Replacements.ILesson {
+        lessonString = lessonString.trim();
+        const teachers = lessonString.match(/((?:[А-Я].){2} [А-Яа-я]*)/g);
+
+        if (teachers) {
+            return {
+                name: lessonString
+                    .replace(teachers.length === 1 ? teachers[0] : "", "")
+                    .trim(),
+                teacher: teachers.join(", "),
+            };
+        } else {
+            return { name: lessonString, teacher: "Отсутствует" };
+        }
+    }
+
     private _generateCookie(): string {
         const id = Math.random().toString(36).substring(2);
         return `PHPSESSID=MPT_Parser#${id};`;
@@ -177,8 +285,9 @@ class Parser {
     }
 
     private _getDayNum(dayName: string): number {
-        const daysRegExps = this._days.map((x) => new RegExp(x, "gi"));
-        return daysRegExps.findIndex((x) => x.test(dayName));
+        moment.locale("ru");
+        const days = moment.weekdays().map((x) => new RegExp(x, "gi"));
+        return days.findIndex((x) => x.test(dayName));
     }
 
     private async _loadPage(path: string): Promise<CheerioAPI> {
