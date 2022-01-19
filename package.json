@@ -1,4 +1,5 @@
 {
+    "version": "1.0.0",
     "name": "@mpt-assistant/parser",
     "license": "MIT",
     "scripts": {
