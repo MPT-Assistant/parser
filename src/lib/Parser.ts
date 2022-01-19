@@ -9,6 +9,7 @@ interface IParserOptions {
 const pages = {
     schedule: "/studentu/raspisanie-zanyatiy/",
     replacements: "/studentu/izmeneniya-v-raspisanii/",
+    replacementsOnDay: "/rasp-management/print-replaces.php?date=",
 } as const;
 
 class Parser {
@@ -245,6 +246,69 @@ class Parser {
                     replacements,
                 });
             });
+        });
+
+        return response;
+    }
+
+    public async getReplacementsOnDay(
+        date: moment.MomentInput = new Date()
+    ): Promise<MPT.Replacements.IGroup[]> {
+        const selectedDate = moment(date);
+        selectedDate.set("milliseconds", 0);
+        selectedDate.set("seconds", 0);
+        selectedDate.set("minutes", 0);
+        selectedDate.set("hours", 0);
+
+        const $ = await this._loadPage(
+            pages.replacementsOnDay + moment(date).format("YYYY-MM-DD")
+        );
+
+        const response: MPT.Replacements.IGroup[] = [];
+        const list = $("body").children();
+
+        list.each((index, element) => {
+            if (index === 0) {
+                return;
+            }
+            const elem = $(element);
+            const groupName = elem.find("caption").text().trim();
+            const replacementsList = elem.find("tbody");
+
+            const replacements: MPT.Replacements.IReplacement[] = [];
+
+            replacementsList.children().each((index, element) => {
+                if (index === 0) {
+                    return;
+                }
+                const elem = $(element);
+                const num = Number(elem.find("td:nth-child(1)").text().trim());
+
+                const oldLessonString = elem
+                    .find("td:nth-child(2)")
+                    .text()
+                    .trim();
+                const newLessonString = elem
+                    .find("td:nth-child(3)")
+                    .text()
+                    .trim();
+
+                const oldLesson = this._parseLesson(oldLessonString);
+                const newLesson = this._parseLesson(newLessonString);
+
+                replacements.push({
+                    new: newLesson,
+                    old: oldLesson,
+                    num,
+                    created: selectedDate.toDate(),
+                });
+            });
+
+            response.push(
+                ...groupName.split(", ").map((group) => {
+                    return { group, replacements };
+                })
+            );
         });
 
         return response;
