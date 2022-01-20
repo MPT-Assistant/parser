@@ -207,11 +207,6 @@ class Parser {
                 const sourceNewLesson = elem.find("td:nth-child(3)").text();
                 const sourceAddToSite = elem.find("td:nth-child(4)").text();
 
-                if (sourceOldLesson.includes("ПРАКТИКА")) {
-                    console.log(`"${sourceOldLesson}"`);
-                    console.log(this._parseLesson(sourceOldLesson));
-                }
-
                 const [lessonNum, newLesson, oldLesson, addToSite]: [
                     number,
                     MPT.Replacements.ILesson,
