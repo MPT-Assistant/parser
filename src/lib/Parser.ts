@@ -449,7 +449,12 @@ class Parser {
         if (teachers) {
             return {
                 name: lessonString
-                    .replace(teachers.length === 1 ? teachers[0] : "", "")
+                    .replace(
+                        teachers.length === 1
+                            ? teachers[0]
+                            : teachers.join(", "),
+                        ""
+                    )
                     .trim(),
                 teacher: teachers.join(", "),
             };
