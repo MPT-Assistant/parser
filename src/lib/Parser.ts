@@ -38,14 +38,12 @@ class Parser {
         const specialtyList: MPT.Schedule.ISpecialty[] = [];
         const schedule = $("div.tab-content:nth-child(6)");
 
-        schedule.children().each((index, element) => {
+        schedule.children(".tab-pane").each((index, element) => {
             const elem = $(element);
+
+            const scheduleHeader = elem.find("h2:nth-child(1)").text().trim();
             const specialty: MPT.Schedule.ISpecialty = {
-                name: elem
-                    .find("h2:nth-child(1)")
-                    .text()
-                    .trim()
-                    .replace("Расписание занятий для ", ""),
+                name: scheduleHeader.replace("Расписание занятий для ", ""),
                 groups: [],
             };
 
@@ -62,12 +60,10 @@ class Parser {
 
                 const groupWeekSchedule: MPT.Schedule.IDay[] = [];
 
-                const weekSchedule = elem.find("table:nth-child(2)").children();
+                const weekSchedule = elem.find("table");
+
                 weekSchedule.each((index, element) => {
                     const elem = $(element);
-                    if (elem.prop("name") === "tbody") {
-                        return;
-                    }
 
                     const title = elem.find("h4");
                     const placeName = title.find("span").text().trim();
@@ -79,7 +75,7 @@ class Parser {
                         lessons: [],
                     };
 
-                    const schedule = elem.next().children();
+                    const schedule = elem.find("tbody").children();
                     schedule.each((index, element) => {
                         if (index === 0) {
                             return;
@@ -112,22 +108,22 @@ class Parser {
                                 lessonElement
                                     .find("div:nth-child(1)")
                                     .text()
-                                    .trim(),
+                                    .trim() || "-",
                                 lessonElement
                                     .find("div:nth-child(3)")
                                     .text()
-                                    .trim(),
+                                    .trim() || "-",
                             ];
 
                             teacherName = [
                                 teacherElement
                                     .find("div:nth-child(1)")
                                     .text()
-                                    .trim(),
+                                    .trim() || "-",
                                 teacherElement
                                     .find("div:nth-child(3)")
                                     .text()
-                                    .trim(),
+                                    .trim() || "-",
                             ];
                         }
 
