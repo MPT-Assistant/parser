@@ -1,5 +1,5 @@
 import axios from "axios";
-import cheerio, { CheerioAPI } from "cheerio";
+import { load, CheerioAPI } from "cheerio";
 import moment from "moment";
 
 interface IParserOptions {
@@ -298,8 +298,8 @@ class Parser {
     }
 
     public async *loadReplacements(
-        minimalDate: Date,
-        maximumDate = new Date()
+        minimalDate: moment.MomentInput,
+        maximumDate: moment.MomentInput = new Date()
     ): AsyncGenerator<MPT.Replacements.IGroup[], void, unknown> {
         const selectedDate = moment(minimalDate);
         selectedDate.isBefore(maximumDate);
@@ -358,17 +358,17 @@ class Parser {
 
         const specialtySite = (await axios.get(specialtyInfo.url))
             .data as string;
-        const $ = cheerio.load(specialtySite);
+        const $ = load(specialtySite);
 
         const importantInformation = $(
-            ".col-sm-8 > div:contains(Важная информация!) > ul"
+            "body > div.page > main > div > section:nth-child(3) > div > div > div.col-xs-12.col-sm-8 > div:nth-child(1) > ul"
         );
         importantInformation.children().map((index, element) => {
             const elem = $(element);
             const news = elem.find("a");
             const date = elem.find("div").text().trim();
             const name = news.text().trim();
-            const link = (news.attr("href") as string).trim();
+            const link = (news.attr("href") as string).trim().substring(1);
             const url = link ? `https://mpt.ru/${link}` : "";
             response.importantInformation.push({
                 name,
@@ -492,7 +492,7 @@ class Parser {
             })
         ).data as string;
 
-        return cheerio.load(html);
+        return load(html);
     }
 }
 
