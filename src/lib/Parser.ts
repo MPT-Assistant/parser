@@ -2,8 +2,21 @@ import axios from "axios";
 import { load, CheerioAPI } from "cheerio";
 import moment from "moment";
 
+import {
+    IReplacementDay,
+    IReplacementGroup,
+    IReplacementItem,
+    IReplacementLesson,
+    IScheduleDay,
+    IScheduleSpecialty,
+    ISpecialty,
+    ISpecialtySite,
+    ISpecialtySiteGroupLeaders,
+    TWeek,
+} from "../types/mpt";
+
 interface IParserOptions {
-    host: string;
+  host: string;
 }
 
 const pages = {
@@ -20,7 +33,7 @@ class Parser {
         this._host = host;
     }
 
-    public async getCurrentWeek(): Promise<MPT.TWeek> {
+    public async getCurrentWeek(): Promise<TWeek> {
         const $ = await this._loadPage(pages.schedule);
         const parsedWeek = $("span.label").text().trim();
         if (/Знаменатель/i.test(parsedWeek)) {
@@ -32,17 +45,17 @@ class Parser {
         }
     }
 
-    public async getSchedule(): Promise<MPT.Schedule.ISpecialty[]> {
+    public async getSchedule(): Promise<IScheduleSpecialty[]> {
         const $ = await this._loadPage(pages.schedule);
 
-        const specialtyList: MPT.Schedule.ISpecialty[] = [];
+        const specialtyList: IScheduleSpecialty[] = [];
         const schedule = $("div.tab-content:nth-child(6)");
 
         schedule.children(".tab-pane").each((index, element) => {
             const elem = $(element);
 
             const scheduleHeader = elem.find("h2:nth-child(1)").text().trim();
-            const specialty: MPT.Schedule.ISpecialty = {
+            const specialty: IScheduleSpecialty = {
                 name: scheduleHeader.replace("Расписание занятий для ", ""),
                 groups: [],
             };
@@ -58,7 +71,7 @@ class Parser {
                     .replace("Группа ", "")
                     .split(", ");
 
-                const groupWeekSchedule: MPT.Schedule.IDay[] = [];
+                const groupWeekSchedule: IScheduleDay[] = [];
 
                 const weekSchedule = elem.find("table");
 
@@ -69,7 +82,7 @@ class Parser {
                     const placeName = title.find("span").text().trim();
                     const dayName = title.text().replace(placeName, "").trim();
 
-                    const daySchedule: MPT.Schedule.IDay = {
+                    const daySchedule: IScheduleDay = {
                         num: this._getDayNum(dayName),
                         place: placeName.replace(/\(|\)/g, "") || "Отсутствует",
                         lessons: [],
@@ -82,9 +95,7 @@ class Parser {
                         }
 
                         const elem = $(element);
-                        const lessonNum = Number(
-                            elem.find("td:nth-child(1)").text()
-                        );
+                        const lessonNum = Number(elem.find("td:nth-child(1)").text());
 
                         if (lessonNum === 0) {
                             return;
@@ -97,33 +108,17 @@ class Parser {
                         const teacherElement = elem.find("td:nth-child(3)");
 
                         if (lessonElement.children().length === 0) {
-                            lessonName = [
-                                lessonElement.text().trim() || "Отсутствует",
-                            ];
-                            teacherName = [
-                                teacherElement.text().trim() || "Отсутствует",
-                            ];
+                            lessonName = [lessonElement.text().trim() || "Отсутствует"];
+                            teacherName = [teacherElement.text().trim() || "Отсутствует"];
                         } else {
                             lessonName = [
-                                lessonElement
-                                    .find("div:nth-child(1)")
-                                    .text()
-                                    .trim() || "-",
-                                lessonElement
-                                    .find("div:nth-child(3)")
-                                    .text()
-                                    .trim() || "-",
+                                lessonElement.find("div:nth-child(1)").text().trim() || "-",
+                                lessonElement.find("div:nth-child(3)").text().trim() || "-",
                             ];
 
                             teacherName = [
-                                teacherElement
-                                    .find("div:nth-child(1)")
-                                    .text()
-                                    .trim() || "-",
-                                teacherElement
-                                    .find("div:nth-child(3)")
-                                    .text()
-                                    .trim() || "-",
+                                teacherElement.find("div:nth-child(1)").text().trim() || "-",
+                                teacherElement.find("div:nth-child(3)").text().trim() || "-",
                             ];
                         }
 
@@ -149,13 +144,11 @@ class Parser {
         return specialtyList;
     }
 
-    public async getReplacements(): Promise<MPT.Replacements.IDay[]> {
+    public async getReplacements(): Promise<IReplacementDay[]> {
         const $ = await this._loadPage(pages.replacements);
 
-        const list = $(
-            ".container-fluid > div:nth-child(1) > div:nth-child(3)"
-        );
-        const response: MPT.Replacements.IDay[] = [];
+        const list = $(".container-fluid > div:nth-child(1) > div:nth-child(3)");
+        const response: IReplacementDay[] = [];
 
         list.children().map((index, element) => {
             if (index === 0) {
@@ -166,9 +159,7 @@ class Parser {
 
             if (elem[0].name === "h4") {
                 const sourceDate = elem.text();
-                const parsedDate = sourceDate.match(
-                    /((?:\d{2}).(?:\d{2}).(?:\d{4}))/g
-                );
+                const parsedDate = sourceDate.match(/((?:\d{2}).(?:\d{2}).(?:\d{4}))/g);
                 if (parsedDate === null) {
                     throw new Error("Date not found");
                 }
@@ -189,7 +180,7 @@ class Parser {
             );
             const groupNames = sourceGroupNames.text().split(", ");
 
-            const replacements: MPT.Replacements.IReplacement[] = [];
+            const replacements: IReplacementItem[] = [];
 
             const replacementsList = elem.find(
                 "table:nth-child(1) > tbody:nth-child(2) > tr:not(:first-child)"
@@ -204,16 +195,16 @@ class Parser {
                 const sourceAddToSite = elem.find("td:nth-child(4)").text();
 
                 const [lessonNum, newLesson, oldLesson, addToSite]: [
-                    number,
-                    MPT.Replacements.ILesson,
-                    MPT.Replacements.ILesson,
-                    Date
-                ] = [
-                    parseInt(sourceLessonNum),
-                    this._parseLesson(sourceNewLesson),
-                    this._parseLesson(sourceOldLesson),
-                    moment(sourceAddToSite, "DD.MM.YYYY HH:mm:ss").toDate(),
-                ];
+          number,
+          IReplacementLesson,
+          IReplacementLesson,
+          Date
+        ] = [
+            parseInt(sourceLessonNum),
+            this._parseLesson(sourceNewLesson),
+            this._parseLesson(sourceOldLesson),
+            moment(sourceAddToSite, "DD.MM.YYYY HH:mm:ss").toDate(),
+        ];
 
                 replacements.push({
                     num: lessonNum,
@@ -236,7 +227,7 @@ class Parser {
 
     public async getReplacementsOnDay(
         date: moment.MomentInput = new Date()
-    ): Promise<MPT.Replacements.IGroup[]> {
+    ): Promise<IReplacementGroup[]> {
         const selectedDate = moment(date);
         selectedDate.set("milliseconds", 0);
         selectedDate.set("seconds", 0);
@@ -247,7 +238,7 @@ class Parser {
             pages.replacementsOnDay + moment(date).format("YYYY-MM-DD")
         );
 
-        const response: MPT.Replacements.IGroup[] = [];
+        const response: IReplacementGroup[] = [];
         const list = $("body").children();
 
         list.each((index, element) => {
@@ -258,7 +249,7 @@ class Parser {
             const groupName = elem.find("caption").text().trim();
             const replacementsList = elem.find("tbody");
 
-            const replacements: MPT.Replacements.IReplacement[] = [];
+            const replacements: IReplacementItem[] = [];
 
             replacementsList.children().each((index, element) => {
                 if (index === 0) {
@@ -267,14 +258,8 @@ class Parser {
                 const elem = $(element);
                 const num = Number(elem.find("td:nth-child(1)").text().trim());
 
-                const oldLessonString = elem
-                    .find("td:nth-child(2)")
-                    .text()
-                    .trim();
-                const newLessonString = elem
-                    .find("td:nth-child(3)")
-                    .text()
-                    .trim();
+                const oldLessonString = elem.find("td:nth-child(2)").text().trim();
+                const newLessonString = elem.find("td:nth-child(3)").text().trim();
 
                 const oldLesson = this._parseLesson(oldLessonString);
                 const newLesson = this._parseLesson(newLessonString);
@@ -300,7 +285,7 @@ class Parser {
     public async *loadReplacements(
         minimalDate: moment.MomentInput,
         maximumDate: moment.MomentInput = new Date()
-    ): AsyncGenerator<MPT.Replacements.IGroup[], void, unknown> {
+    ): AsyncGenerator<IReplacementGroup[], void, unknown> {
         const selectedDate = moment(minimalDate);
         selectedDate.isBefore(maximumDate);
 
@@ -309,12 +294,10 @@ class Parser {
         }
     }
 
-    public async getSpecialtiesList(): Promise<MPT.Specialties.ISpecialty[]> {
+    public async getSpecialtiesList(): Promise<ISpecialty[]> {
         const $ = await this._loadPage(pages.specialtiesSites);
-        const list = $(
-            ".container-fluid > div:nth-child(1) > div:nth-child(3)"
-        );
-        const response: MPT.Specialties.ISpecialty[] = [];
+        const list = $(".container-fluid > div:nth-child(1) > div:nth-child(3)");
+        const response: ISpecialty[] = [];
         list.children().map((index, element) => {
             const elem = $(element).find("a");
             const name = elem.text().trim();
@@ -331,8 +314,8 @@ class Parser {
 
     public async getSpecialtySite(
         specialty: string,
-        specialtiesList?: MPT.Specialties.ISpecialty[]
-    ): Promise<MPT.Specialties.ISite> {
+        specialtiesList?: ISpecialty[]
+    ): Promise<ISpecialtySite> {
         if (!specialtiesList) {
             specialtiesList = await this.getSpecialtiesList();
         }
@@ -348,7 +331,7 @@ class Parser {
             throw new Error("Specialty not found");
         }
 
-        const response: MPT.Specialties.ISite = {
+        const response: ISpecialtySite = {
             ...specialtyInfo,
             importantInformation: [],
             news: [],
@@ -356,8 +339,7 @@ class Parser {
             groupsLeaders: [],
         };
 
-        const specialtySite = (await axios.get(specialtyInfo.url))
-            .data as string;
+        const specialtySite = (await axios.get(specialtyInfo.url)).data as string;
         const $ = load(specialtySite);
 
         const importantInformation = $(
@@ -384,7 +366,7 @@ class Parser {
             const elem = $(element);
             const name = elem.find("h3").text().trim();
 
-            const groupInfo: MPT.Specialties.ISiteGroupLeaders = {
+            const groupInfo: ISpecialtySiteGroupLeaders = {
                 name,
                 roles: [],
             };
@@ -438,7 +420,7 @@ class Parser {
         return response;
     }
 
-    private _parseLesson(lessonString: string): MPT.Replacements.ILesson {
+    private _parseLesson(lessonString: string): IReplacementLesson {
         lessonString = lessonString.trim();
         const teachers = lessonString.match(/((?:[А-Я].){2} [А-Яа-я]*)/g);
 
@@ -446,9 +428,7 @@ class Parser {
             return {
                 name: lessonString
                     .replace(
-                        teachers.length === 1
-                            ? teachers[0]
-                            : teachers.join(", "),
+                        teachers.length === 1 ? teachers[0] : teachers.join(", "),
                         ""
                     )
                     .trim(),
@@ -467,10 +447,7 @@ class Parser {
     private _fixNonDecodeString(input: string): string {
         try {
             return decodeURI(
-                input
-                    .replace("_2C ", ", ")
-                    .replace("_2F", "/")
-                    .replace(/_/gi, "%")
+                input.replace("_2C ", ", ").replace("_2F", "/").replace(/_/gi, "%")
             );
         } catch (error) {
             return input;
@@ -485,12 +462,12 @@ class Parser {
 
     private async _loadPage(path: string): Promise<CheerioAPI> {
         const html = (
-            await axios.get(this._host + path, {
-                headers: {
-                    cookie: this._generateCookie(), // Bypassing an error bad request (occurs with a large number of requests from one IP)
-                },
-            })
-        ).data as string;
+      await axios.get(this._host + path, {
+          headers: {
+              cookie: this._generateCookie(), // Bypassing an error bad request (occurs with a large number of requests from one IP)
+          },
+      })
+    ).data as string;
 
         return load(html);
     }
