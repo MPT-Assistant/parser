@@ -16,10 +16,11 @@ import {
 } from "../types/mpt";
 
 interface IParserOptions {
-  host: string;
+  mptHost: string;
+  reaHost: string;
 }
 
-const pages = {
+const mptPages = {
     schedule: "/studentu/raspisanie-zanyatiy/",
     replacements: "/studentu/izmeneniya-v-raspisanii/",
     replacementsOnDay: "/rasp-management/print-replaces.php?date=",
@@ -27,14 +28,14 @@ const pages = {
 } as const;
 
 class Parser {
-    private _host: string;
+    private _mptHost: string;
 
-    constructor({ host = "https://mpt.ru" }: Partial<IParserOptions> = {}) {
-        this._host = host;
+    constructor({ mptHost = "https://mpt.ru" }: Partial<IParserOptions> = {}) {
+        this._mptHost = mptHost;
     }
 
     public async getCurrentWeek(): Promise<TWeek> {
-        const $ = await this._loadPage(pages.schedule);
+        const $ = await this._loadMptPage(mptPages.schedule);
         const parsedWeek = $("span.label").text().trim();
         if (/Знаменатель/i.test(parsedWeek)) {
             return "Знаменатель";
@@ -46,7 +47,7 @@ class Parser {
     }
 
     public async getSchedule(): Promise<IScheduleSpecialty[]> {
-        const $ = await this._loadPage(pages.schedule);
+        const $ = await this._loadMptPage(mptPages.schedule);
 
         const specialtyList: IScheduleSpecialty[] = [];
         const schedule = $("div.tab-content:nth-child(6)");
@@ -67,9 +68,7 @@ class Parser {
 
                 const groupsNames = this._fixNonDecodeString(
                     elem.find("h3").text().trim()
-                )
-                    .replace("Группа ", "")
-                    .split(", ");
+                ).replace("Группа ", "").split(", ").map(this._fixGroupName.bind(this));
 
                 const groupWeekSchedule: IScheduleDay[] = [];
 
@@ -145,7 +144,7 @@ class Parser {
     }
 
     public async getReplacements(): Promise<IReplacementDay[]> {
-        const $ = await this._loadPage(pages.replacements);
+        const $ = await this._loadMptPage(mptPages.replacements);
 
         const list = $(".container-fluid > div:nth-child(1) > div:nth-child(3)");
         const response: IReplacementDay[] = [];
@@ -178,7 +177,9 @@ class Parser {
             const sourceGroupNames = elem.find(
                 "table:nth-child(1) > caption:nth-child(1) > b:nth-child(1)"
             );
-            const groupNames = sourceGroupNames.text().split(", ");
+            const groupNames = sourceGroupNames.text().split(", ").map(
+                this._fixGroupName.bind(this)
+            );
 
             const replacements: IReplacementItem[] = [];
 
@@ -195,16 +196,16 @@ class Parser {
                 const sourceAddToSite = elem.find("td:nth-child(4)").text();
 
                 const [lessonNum, newLesson, oldLesson, addToSite]: [
-          number,
-          IReplacementLesson,
-          IReplacementLesson,
-          Date
-        ] = [
-            parseInt(sourceLessonNum),
-            this._parseLesson(sourceNewLesson),
-            this._parseLesson(sourceOldLesson),
-            moment(sourceAddToSite, "DD.MM.YYYY HH:mm:ss").toDate(),
-        ];
+                    number,
+                    IReplacementLesson,
+                    IReplacementLesson,
+                    Date
+                ] = [
+                    parseInt(sourceLessonNum),
+                    this._parseLesson(sourceNewLesson),
+                    this._parseLesson(sourceOldLesson),
+                    moment(sourceAddToSite, "DD.MM.YYYY HH:mm:ss").toDate(),
+                ];
 
                 replacements.push({
                     num: lessonNum,
@@ -234,8 +235,8 @@ class Parser {
         selectedDate.set("minutes", 0);
         selectedDate.set("hours", 0);
 
-        const $ = await this._loadPage(
-            pages.replacementsOnDay + moment(date).format("YYYY-MM-DD")
+        const $ = await this._loadMptPage(
+            mptPages.replacementsOnDay + moment(date).format("YYYY-MM-DD")
         );
 
         const response: IReplacementGroup[] = [];
@@ -246,7 +247,7 @@ class Parser {
                 return;
             }
             const elem = $(element);
-            const groupName = elem.find("caption").text().trim();
+            const groupName = this._fixGroupName(elem.find("caption").text().trim());
             const replacementsList = elem.find("tbody");
 
             const replacements: IReplacementItem[] = [];
@@ -295,7 +296,7 @@ class Parser {
     }
 
     public async getSpecialtiesList(): Promise<ISpecialty[]> {
-        const $ = await this._loadPage(pages.specialtiesSites);
+        const $ = await this._loadMptPage(mptPages.specialtiesSites);
         const list = $(".container-fluid > div:nth-child(1) > div:nth-child(3)");
         const response: ISpecialty[] = [];
         list.children().map((index, element) => {
@@ -362,6 +363,7 @@ class Parser {
         const groupsLeadersList = $(
             "div.block_no-margin:contains(Активы групп)"
         ).find(".tab-content");
+
         groupsLeadersList.children().map((index, element) => {
             const elem = $(element);
             const name = elem.find("h3").text().trim();
@@ -454,20 +456,27 @@ class Parser {
         }
     }
 
+    // Symbols in the group code
+    private _fixGroupName(group: string): string {
+        // replacing the Russian o and English o with 0
+        return group.replace(/о|o/gi, "0");
+    }
+
     private _getDayNum(dayName: string): number {
         moment.locale("ru");
         const days = moment.weekdays().map((x) => new RegExp(x, "gi"));
         return days.findIndex((x) => x.test(dayName));
     }
 
-    private async _loadPage(path: string): Promise<CheerioAPI> {
+    private async _loadMptPage(path: string): Promise<CheerioAPI> {
         const html = (
-      await axios.get(this._host + path, {
-          headers: {
-              cookie: this._generateCookie(), // Bypassing an error bad request (occurs with a large number of requests from one IP)
-          },
-      })
-    ).data as string;
+            await axios.get<string>(this._mptHost + path, {
+                headers: {
+                    // Bypassing an error bad request (occurs with a large number of requests from one IP)
+                    cookie: this._generateCookie()
+                },
+            })
+        ).data;
 
         return load(html);
     }
