@@ -16,7 +16,7 @@ import {
     ISpecialtySiteGroupLeaders,
     ITeacher,
     TWeek,
-} from "../types/mpt";
+} from "../types";
 
 interface IParserOptions {
   mptHost: string;

@@ -1,3 +1,5 @@
 import Parser from "./lib/Parser";
 
-export = { Parser };
+export * from "./types";
+
+export { Parser };
