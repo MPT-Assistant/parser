@@ -2,6 +2,8 @@ import axios from "axios";
 import { load, CheerioAPI } from "cheerio";
 import moment from "moment";
 
+import https from "node:https";
+
 import {
     IReplacementDay,
     IReplacementGroup,
@@ -27,11 +29,20 @@ const mptPages = {
     specialtiesSites: "/sites-otdels/",
 } as const;
 
+const reaPages = {
+    teachers: "/ru/org/colleges/instrcol/Pages/portfolio.aspx"
+} as const;
+
 class Parser {
     private _mptHost: string;
+    private _reaHost: string;
 
-    constructor({ mptHost = "https://mpt.ru" }: Partial<IParserOptions> = {}) {
+    constructor({ 
+        mptHost = "https://mpt.ru",
+        reaHost = "https://www.rea.ru"
+    }: Partial<IParserOptions> = {}) {
         this._mptHost = mptHost;
+        this._reaHost = reaHost;
     }
 
     public async getCurrentWeek(): Promise<TWeek> {
@@ -422,6 +433,25 @@ class Parser {
         return response;
     }
 
+    public async getTeachers(): Promise<unknown> {
+        const $ = await this._loadReaPage(reaPages.teachers);
+
+        const teachers: unknown[] = [];
+        const list = $("[src^=\"https://mpt.ru/upload/iblock\"]");
+
+        list.each((_index, element) => {
+            const link = $(`a:contains(${element.attribs.alt})`).attr("href");
+
+            teachers.push({
+                name: element.attribs.alt,
+                photo: element.attribs.src,
+                link
+            });
+        });
+
+        return teachers;
+    }
+
     private _parseLesson(lessonString: string): IReplacementLesson {
         lessonString = lessonString.trim();
         const teachers = lessonString.match(/((?:[А-Я].){2} [А-Яа-я]*)/g);
@@ -468,13 +498,30 @@ class Parser {
         return days.findIndex((x) => x.test(dayName));
     }
 
-    private async _loadMptPage(path: string): Promise<CheerioAPI> {
+    private async _loadMptPage(path: typeof mptPages[keyof typeof mptPages] | string): Promise<CheerioAPI> {
         const html = (
             await axios.get<string>(this._mptHost + path, {
                 headers: {
                     // Bypassing an error bad request (occurs with a large number of requests from one IP)
                     cookie: this._generateCookie()
                 },
+            })
+        ).data;
+
+        return load(html);
+    }
+
+    private async _loadReaPage(path: typeof reaPages[keyof typeof reaPages]): Promise<CheerioAPI> {
+        const html = (
+            await axios.get<string>(this._reaHost + path, {
+                headers: {
+                    Accept: "text/html",
+                    // Bypassing an error bad request (occurs with a large number of requests from one IP)
+                    cookie: this._generateCookie()
+                },
+                httpsAgent: new https.Agent({
+                    rejectUnauthorized: false
+                })
             })
         ).data;
 
