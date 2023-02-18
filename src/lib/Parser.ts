@@ -446,7 +446,7 @@ class Parser {
             teachers.push({
                 ...this._parseTeacherName(element.attribs.alt),
                 photo: element.attribs.src,
-                link
+                link: link ? `${this._reaHost}${link}` : undefined
             });
         });
 
