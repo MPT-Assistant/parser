@@ -14,6 +14,7 @@ import {
     ISpecialty,
     ISpecialtySite,
     ISpecialtySiteGroupLeaders,
+    ITeacher,
     TWeek,
 } from "../types/mpt";
 
@@ -433,17 +434,17 @@ class Parser {
         return response;
     }
 
-    public async getTeachers(): Promise<unknown> {
+    public async getTeachers(): Promise<ITeacher[]> {
         const $ = await this._loadReaPage(reaPages.teachers);
 
-        const teachers: unknown[] = [];
+        const teachers: ITeacher[] = [];
         const list = $("[src^=\"https://mpt.ru/upload/iblock\"]");
 
         list.each((_index, element) => {
             const link = $(`a:contains(${element.attribs.alt})`).attr("href");
 
             teachers.push({
-                name: element.attribs.alt,
+                ...this._parseTeacherName(element.attribs.alt),
                 photo: element.attribs.src,
                 link
             });
@@ -490,6 +491,16 @@ class Parser {
     private _fixGroupName(group: string): string {
         // replacing the Russian o and English o with 0
         return group.replace(/о|o/gi, "0");
+    }
+
+    private _parseTeacherName(teacherName: string): Pick<ITeacher, "name" | "surname" | "patronymic"> {
+        const [surname, name, ...patronymic] = teacherName.split(" ");
+
+        return {
+            name,
+            surname,
+            patronymic: patronymic.join(" ")
+        };
     }
 
     private _getDayNum(dayName: string): number {
