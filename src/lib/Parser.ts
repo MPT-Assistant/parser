@@ -1,5 +1,5 @@
 import axios from "axios";
-import { load, CheerioAPI } from "cheerio";
+import { load, CheerioAPI, Element } from "cheerio";
 import moment from "moment";
 
 import https from "node:https";
@@ -438,16 +438,66 @@ class Parser {
         const $ = await this._loadReaPage(reaPages.teachers);
 
         const teachers: ITeacher[] = [];
-        const list = $("[src^=\"https://mpt.ru/upload/iblock\"]");
+        const list = $("td[class=max-content-weight] img");
 
-        list.each((_index, element) => {
-            const link = $(`a:contains(${element.attribs.alt})`).attr("href");
+        const isTeacherName = (name: string): boolean => {
+            const length = name.split(" ").length;
+            return length >= 3 && length <= 4;
+        };
+
+        const parseTeacher = (element: Element): void => {
+            let teacherName = element.attribs.alt || "";
+
+            if (!isTeacherName(teacherName)) {
+                let currentElement = element.next;
+
+                while (currentElement && !isTeacherName(teacherName)) {
+                    teacherName = this._normalizeTeacherName($(currentElement).text().trim());
+                    currentElement = currentElement.next;
+                }
+
+                if (!isTeacherName(teacherName)) {
+                    if (element.parent === null) {
+                        return;
+                    }
+
+                    const parent = $(element.parent).parent();
+                    const parentText = this._normalizeTeacherName(parent.text().trim()).split("");
+
+                    const middle = parentText.findIndex((value, index) => {
+                        const nextLetter = parentText[index + 1];
+                        if (!nextLetter) {
+                            return undefined;
+                        }
+                        const upperRegExp = new RegExp("[А-Я]");
+                        const lowerRegExp = new RegExp("[а-я]");
+
+                        return lowerRegExp.test(value) && upperRegExp.test(nextLetter);
+                    });
+
+                    if (middle === -1) {
+                        return;
+                    }
+
+                    teacherName = parentText.join("").slice(middle + 1);
+                }
+
+                if (!isTeacherName(teacherName)) {
+                    return;
+                }
+            }
+            
+            const link = $(`a:contains(${teacherName})`).attr("href");
 
             teachers.push({
-                ...this._parseTeacherName(element.attribs.alt),
-                photo: element.attribs.src,
+                ...this._parseTeacherName(teacherName),
+                photo: element.attribs.src.startsWith("/") ? `${this._reaHost}${element.attribs.src}` : element.attribs.src,
                 link: link ? `${this._reaHost}${link}` : undefined
             });
+        };
+
+        list.each((_index, element) => {
+            return parseTeacher(element);
         });
 
         return teachers;
@@ -494,6 +544,7 @@ class Parser {
     }
 
     private _parseTeacherName(teacherName: string): Pick<ITeacher, "name" | "surname" | "patronymic"> {
+        teacherName = this._normalizeTeacherName(teacherName);
         const [surname, name, ...patronymic] = teacherName.split(" ");
 
         return {
@@ -501,6 +552,10 @@ class Parser {
             surname,
             patronymic: patronymic.join(" ")
         };
+    }
+
+    private _normalizeTeacherName(name: string): string {
+        return name.replace(new RegExp(String.fromCharCode(160), "g"), " ");
     }
 
     private _getDayNum(dayName: string): number {
