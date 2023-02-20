@@ -571,6 +571,7 @@ class Parser {
                     // Bypassing an error bad request (occurs with a large number of requests from one IP)
                     cookie: this._generateCookie()
                 },
+                decompress: false
             })
         ).data;
 
