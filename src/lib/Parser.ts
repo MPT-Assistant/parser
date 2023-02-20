@@ -569,9 +569,9 @@ class Parser {
             await axios.get<string>(this._mptHost + path, {
                 headers: {
                     // Bypassing an error bad request (occurs with a large number of requests from one IP)
-                    cookie: this._generateCookie()
+                    cookie: this._generateCookie(),
+                    "Accept-Encoding": "deflate",
                 },
-                decompress: false
             })
         ).data;
 
