@@ -69,10 +69,23 @@ class Parser {
       const elem = $(element);
 
       const scheduleHeader = elem.find("h2:nth-child(1)").text().trim();
-      const specialty: IScheduleSpecialty = {
-        name: scheduleHeader.replace("Расписание занятий для ", ""),
-        groups: [],
-      };
+      const dashPosition = scheduleHeader.indexOf(" - ");
+      const specialtyName = scheduleHeader.substring(
+        23,
+        dashPosition === -1 ? undefined : dashPosition
+      );
+
+      let specialty: IScheduleSpecialty | undefined = specialtyList.find(
+        (x) => x.name === specialtyName
+      );
+
+      if (specialty === undefined) {
+        specialty = {
+          name: specialtyName,
+          groups: [],
+        };
+        specialtyList.push(specialty);
+      }
 
       const specialtyGroups = elem.find(".tab-content").first();
 
@@ -152,8 +165,6 @@ class Parser {
           })
         );
       });
-
-      specialtyList.push(specialty);
     });
 
     return specialtyList;
