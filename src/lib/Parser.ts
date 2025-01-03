@@ -185,6 +185,10 @@ class Parser {
 
       if (elem[0].name === "h4") {
         const sourceDate = elem.text();
+        if (sourceDate === "На ближайшее время замен нет") {
+          return;
+        }
+
         const parsedDate = sourceDate.match(/((?:\d{2}).(?:\d{2}).(?:\d{4}))/g);
         if (parsedDate === null) {
           throw new Error("Date not found");
