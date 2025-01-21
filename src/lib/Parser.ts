@@ -96,7 +96,7 @@ class Parser {
           elem.find("h3").text().trim()
         )
           .replace("Группа ", "")
-          .split(", ")
+          .split(/, |; /)
           .map(this._fixGroupName.bind(this));
 
         const groupWeekSchedule: IScheduleDay[] = [];
@@ -210,7 +210,7 @@ class Parser {
       );
       const groupNames = sourceGroupNames
         .text()
-        .split(", ")
+        .split(/, |; /)
         .map(this._fixGroupName.bind(this));
 
       const replacements: IReplacementItem[] = [];
