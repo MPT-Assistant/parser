@@ -348,7 +348,7 @@ class Parser {
     // In case they do add it to the list of specialties
     if (oops && response.some((x) => x.code === "40.02.04") === false) {
       oops.code = "40.02.04, " + oops.code;
-      oops.code = oops.name.replace("40.02.01", "40.02.04, 40.02.01");
+      oops.name = oops.name.replace("40.02.01", "40.02.04, 40.02.01");
     }
 
     return response;
